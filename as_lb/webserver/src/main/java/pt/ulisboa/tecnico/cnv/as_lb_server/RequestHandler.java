@@ -18,7 +18,10 @@ public abstract class RequestHandler implements HttpHandler {
     
     public LoadBalancer lb;
     
-    abstract String[] getBestInstance();
+    abstract String[] getBestInstance(String[] args);
+    abstract String[] getCallArgs(HttpExchange t);
+    abstract boolean isLambdaCall(String[] args);
+    abstract String doLambdaCall(HttpExchange t);
     
 
     public RequestHandler(LoadBalancer lb) {
@@ -38,31 +41,43 @@ public abstract class RequestHandler implements HttpHandler {
         }
 
         InputStream stream = t.getRequestBody();
-        String[] bestInstanceInfo = getBestInstance();
-        if (bestInstanceInfo[0].equals("")) {
-            t.sendResponseHeaders(500, -1);
-            return;
-        }
-        
-        String requestBody = new BufferedReader(new InputStreamReader(stream)).lines().collect(Collectors.joining("\n"));
-        try {
-            String response = post(requestBody, bestInstanceInfo);
-
+        String[] args = getCallArgs(t);
+        if (isLambdaCall(args)) {
+            String response = doLambdaCall(t);
             t.sendResponseHeaders(200, response.length());
             OutputStream os = t.getResponseBody();
             os.write(response.getBytes());
             os.close();
         }
-        catch (Exception e) {
-            t.sendResponseHeaders(500, -1);
-            return;
+        else {
+            String[] bestInstanceInfo = getBestInstance(args);
+            if (bestInstanceInfo[0].equals("")) {
+                t.sendResponseHeaders(500, -1);
+                return;
+            }
+            
+            String requestBody = new BufferedReader(new InputStreamReader(stream)).lines().collect(Collectors.joining("\n"));
+            try {
+                int requestId = lb.registerRequest(bestInstanceInfo[0], Double.parseDouble(bestInstanceInfo[4]));
+                String response = post(requestBody, bestInstanceInfo);
+                lb.closeRequest(bestInstanceInfo[0], requestId);
+
+                t.sendResponseHeaders(200, response.length());
+                OutputStream os = t.getResponseBody();
+                os.write(response.getBytes());
+                os.close();
+            }
+            catch (Exception e) {
+                t.sendResponseHeaders(500, -1);
+                return;
+            }
         }
     }
 
     public String post(String requestBody, String[] urlInfo) throws Exception {
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create("http://" + urlInfo[0] + ":" + urlInfo[1] + "/" + urlInfo[2]))
+            .uri(URI.create("http://" + urlInfo[1] + ":" + urlInfo[2] + "/" + urlInfo[3]))
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
         return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
