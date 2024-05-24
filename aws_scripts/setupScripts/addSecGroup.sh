@@ -1,5 +1,6 @@
 #!/bin/bash
 
+source config.sh
 # Variables
 SECURITY_GROUP_NAME="MySecurityGroup"
 DESCRIPTION="Security group for SSH, HTTP, HTTPS, and custom TCP on port 8000"

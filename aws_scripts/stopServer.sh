@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source config.sh
+
 # Function to delete all EC2 instances
 delete_instances() {
   INSTANCE_IDS=$(aws ec2 describe-instances --query 'Reservations[*].Instances[*].InstanceId' --output text)

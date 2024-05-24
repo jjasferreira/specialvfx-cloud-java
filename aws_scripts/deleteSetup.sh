@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source config.sh
+
 # Variables
 ROLE_NAME="LoadBalancer"
 INSTANCE_PROFILE_NAME="LoadBalancerInstanceProfile"
