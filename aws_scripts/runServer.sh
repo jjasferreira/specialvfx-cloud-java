@@ -6,7 +6,7 @@ METADATA_OPTIONS='{"HttpTokens":"optional"}'
 
 # Run new instance.
 aws ec2 run-instances \
-        --image-id ami-00d2459ac748076b1 \
+        --image-id $(cat lbScripts/image.id) \
         --instance-type t2.micro \
         --key-name $AWS_KEYPAIR_NAME \
         --security-group-ids $AWS_SECURITY_GROUP \
