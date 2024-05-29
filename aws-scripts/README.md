@@ -4,13 +4,13 @@ This directory stores all scripts necessary to setup and deploy our webserver on
 
 ### To properly deploy our AutoScaler & LoadBalancer server on the cloud, follow the next steps:
 
-- Copy your AWS `<my-key-pair>.pem` key file onto this directory;
+- Copy your AWS `mykeypair.pem` key file onto this directory;
 - Fill [`config.sh`](config.sh) with the proper information regarding your AWS account;
 - Change the permissions of all scripts and the key file:
 
 ```bash
 find . -type f -name '*.sh' -exec chmod 777 {} +
-chmod 400 <my-key-pair>.pem
+chmod 400 mykeypair.pem
 ```
 
 - Execute [`setup.sh`](setup.sh) to setup necessary IAM role, VPC and security group;
