@@ -31,25 +31,25 @@ import com.amazonaws.services.dynamodbv2.util.TableUtils;
 
 public class LoadBalancer {
     // Constants
-    private static String AWS_REGION = "eu-west-3";
-    private static String AMI_ID = "ami-043a37e48ef248940";
-    private static String KEY_NAME = "mykeypair";
-    private static String SEC_GROUP_ID = "sg-02c357dfc6f12c746";
-    private static double MAX_LAMBDA_COMPLEXITY = 20; 
-    private static int ROUND_SCALE = 100;   // round request args to the hundreds, to group similar request args together
-    private static double MAX_COMPLEXITY = 100;
-    private static double REQUEST_TRIGGER = 100;   // every n requests, go get values at dynamoDB
+    private static String AWS_REGION;
+    private static String SEC_GROUP_ID;
+    private static String AMI_ID;
+    private static String KEY_NAME;
     private static String TABLE_NAME ="request-complexity-table";
-    private static Double LINE_COEF = 0.2;
-    private static Double BLOCK_COEF = 0.5;
-    private static Double FUNC_COEF = 0.7;
-    private static Double EX_COEF = 0.5;
-    private static Double TS_COEF = 0.1;
+    private static final int ROUND_SCALE = 100;   // round request args to the hundreds, to group similar request args together
+    private static final double MAX_LAMBDA_COMPLEXITY = 20; 
+    private static final double MAX_COMPLEXITY = 100;
+    private static final double REQUEST_TRIGGER = 100;   // every n requests, go get values at dynamoDB
+    private static final double LINE_COEF = 0.2;
+    private static final double BLOCK_COEF = 0.5;
+    private static final double FUNC_COEF = 0.7;
+    private static final double EX_COEF = 0.5;
+    private static final double TS_COEF = 0.1;
 
     private static AmazonDynamoDB dynamoDB;
-    private List<String> availableInstances;        // contains available instances IDs
+    public List<String> availableInstances;        // contains available instances IDs
     public boolean isOutscaling = false;
-    private HashMap<String, InstanceStats> instanceStats = new HashMap<String, InstanceStats>();
+    public HashMap<String, InstanceStats> instanceStats = new HashMap<String, InstanceStats>();
     private int requestCounter = 0;
 
     // The following ordered maps provide a "local" database representation of the DynamoDB
@@ -59,13 +59,16 @@ public class LoadBalancer {
 
 
 
-    public LoadBalancer() {
+    public LoadBalancer(String awsRegion, String secGroupId, String amiId, String keyName) {
         System.out.println("Launching Load Balancer...");
+        AWS_REGION = awsRegion;
+        SEC_GROUP_ID = secGroupId;
+        AMI_ID = amiId;
+        KEY_NAME = keyName;
         availableInstances = new ArrayList<String>();
         try {
             System.out.println("Initializing DynamoDB...");
             initializeDynamoDB();
-            launchFirstInstance();
             System.out.println("Load Balancer is currently operational");
         }
         catch (Exception e) {
@@ -334,36 +337,6 @@ public class LoadBalancer {
         }
         catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-
-    private void launchFirstInstance() throws Exception{
-        try {
-            AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().withRegion(AWS_REGION).withCredentials(new InstanceProfileCredentialsProvider(false)).build();
-            
-            System.out.println("Starting a new instance.");
-            RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
-            runInstancesRequest.withImageId(AMI_ID)
-                               .withInstanceType("t2.micro")
-                               .withMinCount(1)
-                               .withMaxCount(1)
-                               .withKeyName(KEY_NAME)
-                               .withSecurityGroupIds(SEC_GROUP_ID);
-            RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
-            String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
-            String newInstanceIP = runInstancesResult.getReservation().getInstances().get(0).getPublicIpAddress();
-            InstanceStats stats = new InstanceStats(newInstanceIP);
-            instanceStats.put(newInstanceId, stats);
-            availableInstances.add(newInstanceId);
-
-            
-            Thread.sleep(60000);
-            System.out.println("Wait time expired, instance is running");            
-        } catch (AmazonServiceException ase) {
-                System.out.println("Caught Exception: " + ase.getMessage());
-                System.out.println("Reponse Status Code: " + ase.getStatusCode());
-                System.out.println("Error Code: " + ase.getErrorCode());
-                System.out.println("Request ID: " + ase.getRequestId());
         }
     }
 }
