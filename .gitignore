@@ -1,9 +1,7 @@
 **/target/
 .idea
 
-webserver/webserver/.classpath
-webserver/webserver/.project
-webserver/webserver/.settings
+specialvfx/output
 
 webserver/output
 /config
