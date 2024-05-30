@@ -18,6 +18,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import boofcv.concurrency.BoofConcurrency;
 
 public abstract class ImageProcessingHandler implements HttpHandler, RequestHandler<Map<String,String>, String> {
 
@@ -39,6 +40,8 @@ public abstract class ImageProcessingHandler implements HttpHandler, RequestHand
 
     @Override
     public void handle(HttpExchange t) throws IOException {
+        BoofConcurrency.USE_CONCURRENT = false;
+
         // Handling CORS
         t.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
 
