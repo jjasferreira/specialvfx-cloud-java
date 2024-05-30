@@ -14,12 +14,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
 public class RaytracerHandler implements HttpHandler, RequestHandler<Map<String, String>, String> {
+
+    private static String input_hash_b64;
+    private static String texmap_hash_b64;
 
     private final static ObjectMapper mapper = new ObjectMapper();
 
@@ -61,6 +66,26 @@ public class RaytracerHandler implements HttpHandler, RequestHandler<Map<String,
             for (int i = 0; i < texmapBytes.size(); i++) {
                 texmap[i] = texmapBytes.get(i).byteValue();
             }
+        }
+
+        // Compute the hashes of the input files
+        MessageDigest md = null;
+        try {
+            md = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+
+        byte[] input_hash = md.digest(input);
+        byte[] texmap_hash = null;
+        if (texmap != null) {
+            texmap_hash = md.digest(texmap);
+        }
+
+        input_hash_b64 = Base64.getEncoder().encodeToString(input_hash);
+        texmap_hash_b64 = null;
+        if (texmap_hash != null) {
+            texmap_hash_b64 = Base64.getEncoder().encodeToString(texmap_hash);
         }
 
         byte[] result = handleRequest(input, texmap, scols, srows, wcols, wrows, coff, roff);

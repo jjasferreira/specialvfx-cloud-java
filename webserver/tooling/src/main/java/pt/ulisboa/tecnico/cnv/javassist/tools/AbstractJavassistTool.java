@@ -80,7 +80,7 @@ public abstract class AbstractJavassistTool implements ClassFileTransformer {
         this.writeDestination = writeDestination;
     }
 
-    private static List<BasicBlock> getBasicBlocks(CtBehavior behavior) throws BadBytecode {
+    protected static List<BasicBlock> getBasicBlocks(CtBehavior behavior) throws BadBytecode {
         CodeAttribute ca = behavior.getMethodInfo().getCodeAttribute();
         LineNumberAttribute ainfo = (LineNumberAttribute)ca.getAttribute(LineNumberAttribute.tag);
         List<BasicBlock> bbs = new ArrayList<>();

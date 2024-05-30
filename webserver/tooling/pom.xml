@@ -7,7 +7,7 @@
   <groupId>pt.ulisboa.tecnico</groupId>
   <artifactId>JavassistWrapper</artifactId>
   <version>1.0</version>
-  <name>JavassistWrapper</name>
+  <name>tooling</name>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -21,6 +21,13 @@
       <artifactId>javassist</artifactId>
       <version>3.28.0-GA</version>
     </dependency>
+
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-dynamodb</artifactId>
+      <version>1.12.431</version>
+    </dependency>
+
   </dependencies>
 
   <build>
