@@ -25,12 +25,6 @@ public class RaytracerHandler implements HttpHandler, RequestHandler<Map<String,
 
     private static String input_hash_b64;
     private static String texmap_hash_b64;
-    private int scols;
-    private int srows;
-    private int wcols;
-    private int wrows;
-    private int coff;
-    private int roff;
 
     private final static ObjectMapper mapper = new ObjectMapper();
 
@@ -51,12 +45,12 @@ public class RaytracerHandler implements HttpHandler, RequestHandler<Map<String,
         String query = requestedUri.getRawQuery();
         Map<String, String> parameters = queryToMap(query);
 
-        scols = Integer.parseInt(parameters.get("scols"));
-        srows = Integer.parseInt(parameters.get("srows"));
-        wcols = Integer.parseInt(parameters.get("wcols"));
-        wrows = Integer.parseInt(parameters.get("wrows"));
-        coff = Integer.parseInt(parameters.get("coff"));
-        roff = Integer.parseInt(parameters.get("roff"));
+        int scols = Integer.parseInt(parameters.get("scols"));
+        int srows = Integer.parseInt(parameters.get("srows"));
+        int wcols = Integer.parseInt(parameters.get("wcols"));
+        int wrows = Integer.parseInt(parameters.get("wrows"));
+        int coff = Integer.parseInt(parameters.get("coff"));
+        int roff = Integer.parseInt(parameters.get("roff"));
         Main.ANTI_ALIAS = Boolean.parseBoolean(parameters.getOrDefault("aa", "false"));
         Main.MULTI_THREAD = Boolean.parseBoolean(parameters.getOrDefault("multi", "false"));
 

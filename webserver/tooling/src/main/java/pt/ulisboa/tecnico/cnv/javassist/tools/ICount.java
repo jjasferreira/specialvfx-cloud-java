@@ -11,23 +11,7 @@ import pt.ulisboa.tecnico.cnv.javassist.MetricsHelper;
 
 public class ICount extends CodeDumper {
 
-    /**
-     * Number of executed basic blocks.
-     */
-    //private static long nblocks = 0;
-
-    /**
-     * Number of executed methods.
-     */
-    //private static long nmethods = 0;
-
-    /**
-     * Number of executed instructions.
-     */
-    private static long ninsts = 0;
-
-    private static Map<Long, Long> ninstsmap = new HashMap<>();
-    private static Map<Long, String> methodmap = new HashMap<>();
+       private static Map<Long, Long> ninstMap = new HashMap<>();
 
     // Store the request that are being instrumented, should be reset every time we write to Helper Class
     // ThreadId -> RequestType (String: "blur", "enhance", "raytrace")
@@ -37,78 +21,37 @@ public class ICount extends CodeDumper {
     // ThreadId -> Data (String) comma separated list of values blur,enhance: size(widthxheight); raytrace: hash scene hash texturemap
     private static Map<Long, String> requestDataMap = new HashMap<>();
 
-    private static Thread currentThread;
-
     private static MetricsHelper mh;
 
     public ICount(List<String> packageNameList, String writeDestination) throws Exception {
         super(packageNameList, writeDestination);
 
-        // Check or wait until the table exists
+        // TODO: Check or wait until the table exists
         mh = new MetricsHelper();
     }
 
     public static void incBasicBlock(int position, int length) {
         long threadID = Thread.currentThread().getId();
 
-        if (!ninstsmap.containsKey(threadID)) {
+        /*if (!ninstMap.containsKey(threadID)) {
             StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
             System.out.println("Called from method: " + stackTraceElements[2] + " with thread ID: " + threadID);
-        }
-        ninstsmap.put(threadID, ninstsmap.getOrDefault(threadID, 0L) + length);
-    }
+        }*/
 
-    public static void incBasicBlock(int position, int length, String request) {
-        //TODO Do something
-    }
-
-    public static void incBehavior(String name) {
-        //nmethods++;
-    }
-
-    public static void setThreadId(Thread thread) {
-        currentThread = thread;
+        ninstMap.put(threadID, ninstMap.getOrDefault(threadID, 0L) + length);
     }
 
     public static void printStatistics(long threadId) throws Exception {
-        //Thread.sleep(1500L);
-        //System.out.printf("CurrentThread: %d", currentThread.getId());
-        /*System.out
-                .println(String.format("[%s] Number of executed methods: %s", ICount.class.getSimpleName(), nmethods));
-        System.out.println(
-                String.format("[%s] Number of executed basic blocks: %s", ICount.class.getSimpleName(), nblocks));*/
 
-        String dbKey = requestTypeMap.getOrDefault(threadId, "null") + "," + requestDataMap.getOrDefault(threadId, "null");
-        mh.addEntry(dbKey, ninstsmap.getOrDefault(threadId, -1L));
+        String dbKey = requestTypeMap.getOrDefault(threadId, "null") + ";" + requestDataMap.getOrDefault(threadId, "null");
+        mh.addEntry(dbKey, ninstMap.getOrDefault(threadId, -1L));
 
-        /*System.out.println("Print Statistics");
+        if (ninstMap.get(threadId) != null){
 
-        for (long key : ninstsmap.keySet()) {
-            System.out.println("Key: " + key + " Value: " + ninstsmap.get(key));
-        }*/
-
-        /*for (Map.Entry<Long, Long> entry : ninstsmap.entrySet()) {
-
-            if (entry.getValue() != null){
-                System.out.println(
-                        String.format("[Handle #%d][Thread #%d] Number of executed instructions: %s",
-                                currentThread.getId(), entry.getKey(), entry.getValue())
-                );
-
-            }
-            System.out.println(
-                    String.format("Thread #%s, RequestType %s", entry.getKey(), requestTypeMap.getOrDefault(entry.getKey(), "null"))
-            );
-
-        }*/
-
-        if (ninstsmap.get(threadId) != null){
-
-            long value = ninstsmap.get(threadId);
+            long value = ninstMap.get(threadId);
 
             System.out.println(
-                    String.format("[Handle #%d][Thread #%d] Number of executed instructions: %s",
-                            currentThread.getId(), threadId, value)
+                    String.format("[Thread #%d] Number of executed instructions: %s", threadId, value)
             );
 
             System.out.println(
@@ -122,13 +65,23 @@ public class ICount extends CodeDumper {
 
         requestTypeMap.remove(threadId);
         requestDataMap.remove(threadId);
-        ninstsmap.remove(threadId);
+        ninstMap.remove(threadId);
 
         System.out.println("\033[31mCleared Hash Maps!\033[0m");
         System.out.println("---------------------------");
     }
 
     public static void setRequestType(long threadId, String requestType) {
+
+        if (requestType.equals("raytrace")) {
+            requestType = "1";
+        }
+        if (requestType.equals("blur")) {
+            requestType = "2";
+        }
+        if (requestType.equals("enhance")) {
+            requestType = "3";
+        }
 
         if (requestTypeMap.putIfAbsent(threadId, requestType) != null) { // Returns null when successfully inserts
             System.out.println("[\033[31mERROR\033[0m] There's already a request in this thread!");
@@ -138,7 +91,7 @@ public class ICount extends CodeDumper {
 
     public static void setImageProcRequestData(long threadId, int width, int height) {
 
-        String requestData = width + "x" + height;
+        String requestData = String.valueOf(width * height);
 
         if (requestDataMap.putIfAbsent(threadId, requestData) != null) { // Returns null when successfully inserts
             System.out.println("[\033[31mERROR\033[0m] There's already a request in this thread!");
@@ -146,14 +99,15 @@ public class ICount extends CodeDumper {
 
     }
 
-    public static void setRaytracerRequestData(long threadId, String input_hash, String texmap_hash, int swidth, int sheight, int coff, int roff) {
+    public static void setRaytracerRequestData(long threadId, String input_hash, String texmap_hash) {
 
         String requestData = input_hash;
         if (texmap_hash != null) {
-            requestData += "," + texmap_hash;
+            requestData += ";" + texmap_hash;
+        } else {
+            requestData += ";null";
         }
-        requestData += "," + swidth + "," + sheight + "," + coff + "," + roff;
-        System.out.println("setRaytracerRequestData");
+
         if (requestDataMap.putIfAbsent(threadId, requestData) != null) { // Returns null when successfully inserts
             System.out.println("[\033[31mERROR\033[0m] There's already a request in this thread!");
         }
@@ -170,13 +124,6 @@ public class ICount extends CodeDumper {
 
         if (behavior.getName().equals("handle")) {
 
-            /*switch(this.getClass().getSimpleName()) {
-                case "BlurImageHandler": %s.setRequestType(Thread.currentThread().getId(), "blur"); break;
-                case "EnhanceImageHandler": %s.setRequestType(Thread.currentThread().getId(), "enhance"); break;
-                case "RaytracerHandler": %s.setRequestType(Thread.currentThread().getId(), "raytrace"); break;
-                default: break;
-            }*/
-
             // Before the handle method is executed
             behavior.insertBefore(String.format("switch(this.getClass().getSimpleName()) {\n" +
                             " case \"BlurImageHandler\": %s.setRequestType(Thread.currentThread().getId(), \"blur\"); break; \n" +
@@ -186,35 +133,14 @@ public class ICount extends CodeDumper {
                             " }",
                     ICount.class.getName(), ICount.class.getName(), ICount.class.getName()));
 
-            behavior.insertBefore(String.format("%s.setThreadId(Thread.currentThread());", ICount.class.getName()));
-            behavior.insertAfter(String.format("%s.incBehavior(\"%s\");", ICount.class.getName(), behavior.getLongName()));
-
-
-            // Change "main" to "handle" from the Raytracer Handler or the ImageProcc
-            // handler
-            // if (name=="handle") {
-            // b.insertBefore("cap(x,y)");
-            // b.inserAfter("printStatistics()");
-            // }
-            //
-            // Can we do this to insert the capture method to the function - No -> The
-            // compiler transfer local
-            // variables to relative positions
-            //
-            // But javassist provides special parameters ->
-            // $0 -> this
-            // $1, $2 -> parameters of the function call (Better)
-            // $$ -> expands all the parameters (Can also be useful)
-            // so cap($1, $2) -> uses the first and second parameter of the handle method if
-            // the handle method has two parameters
-
             if (behavior.getDeclaringClass().getSimpleName().equals("RaytracerHandler")) {
-                behavior.insertAfter(String.format("%s.setRaytracerRequestData(Thread.currentThread().getId(), input_hash_b64, texmap_hash_b64, scols, srows, coff, roff);", ICount.class.getName()));
+                behavior.insertAfter(String.format("%s.setRaytracerRequestData(Thread.currentThread().getId(), input_hash_b64, texmap_hash_b64);", ICount.class.getName()));
             }
+
             behavior.insertAfter(String.format("%s.printStatistics(Thread.currentThread().getId());", ICount.class.getName()));
         }
 
-
+        // Adds the data in the blur/enhance cases
         if (behavior.getName().equals("process")) {
             if (behavior.getDeclaringClass().getSimpleName().equals("BlurImageHandler")) {
                 behavior.insertBefore(String.format("%s.setImageProcRequestData(Thread.currentThread().getId(), $1.getWidth(), $1.getHeight());", ICount.class.getName()));
@@ -224,7 +150,6 @@ public class ICount extends CodeDumper {
         }
 
         super.transform(behavior);
-        //ninstsmap = new HashMap<>();
     }
 
 

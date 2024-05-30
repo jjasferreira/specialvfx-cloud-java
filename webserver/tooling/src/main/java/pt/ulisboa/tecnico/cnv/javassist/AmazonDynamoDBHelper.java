@@ -24,7 +24,8 @@ public class AmazonDynamoDBHelper {
 
     private static AmazonDynamoDB dynamoDB;
 
-    private static final String tableName = "request-complexity-table";
+    //private static final String tableName = "request-complexity-table";
+    private static final String tableName = "test-table";
 
     private static Map<String, List<WriteRequest>> requestItems = new HashMap<>();
     public static List<WriteRequest> writeRequests = new ArrayList<>();
@@ -39,8 +40,8 @@ public class AmazonDynamoDBHelper {
 
     private static Map<String, AttributeValue> newItem(String request, long complexity) {
         Map<String, AttributeValue> item = new HashMap<String, AttributeValue>();
-        item.put("request", new AttributeValue(request));
-        item.put("complexity", new AttributeValue().withN(Long.toString(complexity)));
+        item.put("type-args", new AttributeValue(request));
+        item.put("line", new AttributeValue().withN(Long.toString(complexity)));
         return item;
     }
 
@@ -54,10 +55,13 @@ public class AmazonDynamoDBHelper {
         //requestItems.put(tableName, writeRequests);
     }
 
-    public static void sendRequests() {
+//    String key = row.get("type-args").getS();
+//    String attr = row.get("line-block-func").getS();
+
+    /*public static void sendRequests() {
         requestItems.put(tableName, writeRequests);
         BatchWriteItemRequest batchWriteItemRequest = new BatchWriteItemRequest().withRequestItems(requestItems);
         dynamoDB.batchWriteItem(batchWriteItemRequest);
-    }
+    }*/
 
 }
