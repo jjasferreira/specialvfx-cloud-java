@@ -9,8 +9,12 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -19,9 +23,9 @@ public abstract class RequestHandler implements HttpHandler {
     public LoadBalancer lb;
     
     abstract String[] getBestInstance(String[] args);
-    abstract String[] getCallArgs(HttpExchange t);
+    abstract String[] getCallArgs(String requestBody, URI url, Map<String, Object> body);
     abstract boolean isLambdaCall(String[] args);
-    abstract String doLambdaCall(HttpExchange t);
+    abstract String doLambdaCall(String requestBody, URI url, Map<String, Object> body);
     
 
     public RequestHandler(LoadBalancer lb) {
@@ -41,25 +45,40 @@ public abstract class RequestHandler implements HttpHandler {
         }
 
         InputStream stream = t.getRequestBody();
-        String[] args = getCallArgs(t);
+        String requestBody = new String(stream.readAllBytes(),  StandardCharsets.UTF_8);
+        URI requestedUri = t.getRequestURI();
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> body = null; 
+        try {
+            body = mapper.readValue(stream, new TypeReference<>() {});
+        }
+        catch (IOException io) {
+            io.printStackTrace();
+        }
+
+        String[] args = getCallArgs(requestBody, requestedUri, body);
+        System.out.println(args[0]);
         if (isLambdaCall(args)) {
-            String response = doLambdaCall(t);
+            System.out.println("Doing lambda call");
+            String response = doLambdaCall(requestBody, requestedUri, body);
             t.sendResponseHeaders(200, response.length());
             OutputStream os = t.getResponseBody();
             os.write(response.getBytes());
             os.close();
         }
         else {
+            System.out.println("Doing regular request");
             String[] bestInstanceInfo = getBestInstance(args);
+            System.out.println(bestInstanceInfo[1]);
             if (bestInstanceInfo[0].equals("")) {
                 t.sendResponseHeaders(500, -1);
                 return;
             }
             
-            String requestBody = new BufferedReader(new InputStreamReader(stream)).lines().collect(Collectors.joining("\n"));
             try {
                 int requestId = lb.registerRequest(bestInstanceInfo[0], Double.parseDouble(bestInstanceInfo[4]));
                 String response = post(requestBody, bestInstanceInfo);
+                System.out.println(response);
                 lb.closeRequest(bestInstanceInfo[0], requestId);
 
                 t.sendResponseHeaders(200, response.length());
@@ -69,6 +88,7 @@ public abstract class RequestHandler implements HttpHandler {
             }
             catch (Exception e) {
                 t.sendResponseHeaders(500, -1);
+                e.printStackTrace();
                 return;
             }
         }
@@ -80,6 +100,7 @@ public abstract class RequestHandler implements HttpHandler {
             .uri(URI.create("http://" + urlInfo[1] + ":" + urlInfo[2] + "/" + urlInfo[3]))
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
+        System.out.println("http://" + urlInfo[1] + ":" + urlInfo[2] + "/" + urlInfo[3]);  
         return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
     }
 

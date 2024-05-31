@@ -3,7 +3,9 @@ package pt.ulisboa.tecnico.cnv.aslb;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URI;
 import java.util.Base64;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -24,10 +26,7 @@ public class EnhanceRequestHandler extends RequestHandler {
         super(lb);
     }
 
-    public String doLambdaCall(HttpExchange t) {
-        InputStream stream = t.getRequestBody();
-        // Result syntax: data:image/<format>;base64,<encoded image>
-        String result = new BufferedReader(new InputStreamReader(stream)).lines().collect(Collectors.joining("\n"));
+    public String doLambdaCall(String result, URI requestedUri, Map<String, Object> b) {
         String[] resultSplits = result.split(",");
         String format = resultSplits[0].split("/")[1].split(";")[0];
         String body = resultSplits[1];
@@ -58,10 +57,7 @@ public class EnhanceRequestHandler extends RequestHandler {
     }
 
     // Return size of image
-    public String[] getCallArgs(HttpExchange t) {
-        InputStream stream = t.getRequestBody();
-        // Result syntax: data:image/<format>;base64,<encoded image>
-        String result = new BufferedReader(new InputStreamReader(stream)).lines().collect(Collectors.joining("\n"));
+    public String[] getCallArgs(String result, URI requestedUri, Map<String, Object> b) {
         String[] resultSplits = result.split(",");
         String encodedImage = resultSplits[1];
         byte[] decoded = Base64.getDecoder().decode(encodedImage);
