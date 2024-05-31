@@ -53,14 +53,14 @@ public abstract class RequestHandler implements HttpHandler {
             body = mapper.readValue(stream, new TypeReference<>() {});
         }
         catch (IOException io) {
-            io.printStackTrace();
+            //
         }
 
         String[] args = getCallArgs(requestBody, requestedUri, body);
-        System.out.println(args[0]);
         if (isLambdaCall(args)) {
             System.out.println("Doing lambda call");
             String response = doLambdaCall(requestBody, requestedUri, body);
+            System.out.println("Request complete, responding now...");
             t.sendResponseHeaders(200, response.length());
             OutputStream os = t.getResponseBody();
             os.write(response.getBytes());
@@ -69,7 +69,6 @@ public abstract class RequestHandler implements HttpHandler {
         else {
             System.out.println("Doing regular request");
             String[] bestInstanceInfo = getBestInstance(args);
-            System.out.println(bestInstanceInfo[1]);
             if (bestInstanceInfo[0].equals("")) {
                 t.sendResponseHeaders(500, -1);
                 return;
@@ -78,7 +77,7 @@ public abstract class RequestHandler implements HttpHandler {
             try {
                 int requestId = lb.registerRequest(bestInstanceInfo[0], Double.parseDouble(bestInstanceInfo[4]));
                 String response = post(requestBody, bestInstanceInfo);
-                System.out.println(response);
+                System.out.println("Request complete, responding now...");
                 lb.closeRequest(bestInstanceInfo[0], requestId);
 
                 t.sendResponseHeaders(200, response.length());
@@ -99,8 +98,7 @@ public abstract class RequestHandler implements HttpHandler {
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create("http://" + urlInfo[1] + ":" + urlInfo[2] + "/" + urlInfo[3]))
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-            .build();
-        System.out.println("http://" + urlInfo[1] + ":" + urlInfo[2] + "/" + urlInfo[3]);  
+            .build();  
         return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
     }
 

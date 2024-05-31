@@ -18,10 +18,11 @@ public class MetricsHelper {
         Pair<String, Long> entry = new Pair<>(entryId, metric);
         metrics.add(entry);
 
-        if (metrics.size() >= 5) {
-
+        if (metrics.size() >= 1) {
             // Send to DynamoDB
             for (Pair<String, Long> pair : metrics) {
+                System.out.println(pair.getFirst());
+                System.out.println(pair.getSecond());
                 AmazonDynamoDBHelper.addEntry(pair.getFirst(), pair.getSecond());
             }
             //AmazonDynamoDBHelper.sendRequests();

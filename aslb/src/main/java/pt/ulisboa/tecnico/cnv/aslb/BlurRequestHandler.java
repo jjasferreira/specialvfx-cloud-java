@@ -1,6 +1,7 @@
 package pt.ulisboa.tecnico.cnv.aslb;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -8,6 +9,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.awt.image.BufferedImage;
+
+import javax.imageio.ImageIO;
+
 import com.sun.net.httpserver.HttpExchange;
 
 import software.amazon.awssdk.services.lambda.LambdaClient;
@@ -59,14 +64,19 @@ public class BlurRequestHandler extends RequestHandler {
 
     // Return size of image
     public String[] getCallArgs(String result, URI requestedUri, Map<String, Object> b) {
-        System.out.println(result);
-        System.out.println("ESTOU NO GET CALL ARGS 3");
         String[] resultSplits = result.split(",");
         String encodedImage = resultSplits[1];
         byte[] decoded = Base64.getDecoder().decode(encodedImage);
-        String[] args = new String[1];
-        args[0] = String.valueOf(decoded.length);
-        System.out.println("ESTOU NO GET CALL ARGS 4");
-        return args;
+        ByteArrayInputStream bais = new ByteArrayInputStream(decoded);
+        try {
+            BufferedImage bi = ImageIO.read(bais);
+            String[] args = new String[1];
+            args[0] = String.valueOf(bi.getWidth() * bi.getHeight());
+            return args;
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            return new String[2];
+        }
     }
 }

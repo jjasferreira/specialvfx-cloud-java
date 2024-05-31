@@ -22,7 +22,8 @@ public class AutoScaler {
     private static String SEC_GROUP_ID;
     private static String AMI_ID;
     private static String KEY_NAME;
-    private static final int SCALE_PERIOD = 60; // seconds
+    private static String IAM_ROLE_NAME;
+    private static final int SCALE_PERIOD = 300; // seconds
     private static final double MIN_THRESHOLD = 20.0; // CPU utilization %
     private static final double MAX_THRESHOLD = 70.0; // CPU utilization %
     private static final int MIN_INSTANCES = 1;
@@ -33,20 +34,21 @@ public class AutoScaler {
     private LoadBalancer lb;
     private Set<String> decomissionedInstances;
 
-    public AutoScaler(String awsRegion, String secGroupId, String amiId, String keyName, LoadBalancer lb) {
+    public AutoScaler(String awsRegion, String secGroupId, String amiId, String keyName, String roleName, LoadBalancer lb) {
         System.out.println("[AS] Launching Auto Scaler with " + SCALE_PERIOD + "s period, " + MIN_THRESHOLD + "% min threshold and " + MAX_THRESHOLD + "% max threshold");
         AWS_REGION = awsRegion;
         SEC_GROUP_ID = secGroupId;
         AMI_ID = amiId;
         KEY_NAME = keyName;
+        IAM_ROLE_NAME = roleName;
         System.out.println("[AS] AWS Region: " + AWS_REGION + ", Security Group ID: " + SEC_GROUP_ID + ", Worker AMI ID: " + AMI_ID + ", Key Pair: " + KEY_NAME);
         this.cloudWatch = AmazonCloudWatchClientBuilder.standard()
             .withRegion(AWS_REGION)
-            .withCredentials(new EnvironmentVariableCredentialsProvider())
+            .withCredentials(new InstanceProfileCredentialsProvider(false))
             .build();
         this.ec2 = AmazonEC2ClientBuilder.standard()
             .withRegion(AWS_REGION)
-            .withCredentials(new EnvironmentVariableCredentialsProvider())
+            .withCredentials(new InstanceProfileCredentialsProvider(false))
             .build();
         this.lb = lb;
         this.decomissionedInstances = new HashSet<>();
@@ -65,7 +67,9 @@ public class AutoScaler {
                 .withMinCount(1)
                 .withMaxCount(1)
                 .withKeyName(KEY_NAME)
-                .withSecurityGroupIds(SEC_GROUP_ID);
+                .withSecurityGroupIds(SEC_GROUP_ID)
+                .withMonitoring(true)
+                .withIamInstanceProfile(new IamInstanceProfileSpecification().withName(IAM_ROLE_NAME));
 
             RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
             String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
@@ -141,13 +145,15 @@ public class AutoScaler {
 
         for (String instanceId : lb.availableInstances) {
             GetMetricStatisticsRequest request = new GetMetricStatisticsRequest()
-                .withStartTime(new Date(System.currentTimeMillis() - SCALE_PERIOD * 1000))
+                .withStartTime(new Date(System.currentTimeMillis() - SCALE_PERIOD * 1500))
                 .withNamespace("AWS/EC2")
                 .withPeriod(SCALE_PERIOD)
                 .withMetricName("CPUUtilization")
                 .withStatistics("Average")
                 .withDimensions(new Dimension().withName("InstanceId").withValue(instanceId))
                 .withEndTime(new Date());
+
+            System.out.println(new Date().getTime());
 
             GetMetricStatisticsResult result = cloudWatch.getMetricStatistics(request);
             List<Datapoint> datapoints = result.getDatapoints();
@@ -157,8 +163,11 @@ public class AutoScaler {
                 System.out.println("[AS] CPU utilization for instance " + instanceId + " = " + cpuUtilization);
                 totalCpuUtilization += cpuUtilization;
             }
+            else {
+                System.out.println("[AS] No data points yet");
+            }
         }
-        return instanceCount == 0 ? 0 : totalCpuUtilization / instanceCount;
+        return totalCpuUtilization / instanceCount;
     }
 
     private void scaleIn() {
@@ -196,7 +205,8 @@ public class AutoScaler {
                 .withMinCount(1)
                 .withMaxCount(1)
                 .withKeyName(KEY_NAME)
-                .withSecurityGroupIds(SEC_GROUP_ID);
+                .withSecurityGroupIds(SEC_GROUP_ID)
+                .withIamInstanceProfile(new IamInstanceProfileSpecification().withName(IAM_ROLE_NAME));
             RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
             String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
             String newInstanceIP = runInstancesResult.getReservation().getInstances().get(0).getPublicIpAddress();

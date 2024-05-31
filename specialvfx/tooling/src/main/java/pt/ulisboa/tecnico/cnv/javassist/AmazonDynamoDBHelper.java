@@ -5,6 +5,7 @@ import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.model.*;
+import com.amazonaws.services.dynamodbv2.util.TableUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,7 +19,7 @@ import java.util.Map;
 public class AmazonDynamoDBHelper {
 
     // TODO - fill fields with correct values.
-    private static String AWS_REGION = "us-east-1";
+    private static String AWS_REGION = "eu-west-3";
 
     private static AmazonDynamoDB dynamoDB;
 
@@ -40,7 +41,7 @@ public class AmazonDynamoDBHelper {
     private static Map<String, AttributeValue> newItem(String request, long complexity) {
         Map<String, AttributeValue> item = new HashMap<String, AttributeValue>();
         item.put("type-args", new AttributeValue(request));
-        item.put("line", new AttributeValue().withN(Long.toString(complexity)));
+        item.put("line", new AttributeValue().withS(Long.toString(complexity)));
         return item;
     }
 
@@ -59,7 +60,13 @@ public class AmazonDynamoDBHelper {
             dynamoDB.describeTable(tableName);
             return true;
         } catch (ResourceNotFoundException e) {
-            return false;
+                        CreateTableRequest createTableRequest = new CreateTableRequest().withTableName(tableName)
+                        .withKeySchema(new KeySchemaElement().withAttributeName("type-args").withKeyType(KeyType.HASH))
+                        .withAttributeDefinitions(new AttributeDefinition().withAttributeName("type-args").withAttributeType(ScalarAttributeType.S))
+                        .withProvisionedThroughput(new ProvisionedThroughput().withReadCapacityUnits(1L).withWriteCapacityUnits(1L));
+
+            TableUtils.createTableIfNotExists(dynamoDB, createTableRequest);
+            return true;
         }
     }
 

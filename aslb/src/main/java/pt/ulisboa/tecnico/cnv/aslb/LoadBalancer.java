@@ -25,15 +25,16 @@ public class LoadBalancer {
     private static String SEC_GROUP_ID;
     private static String AMI_ID;
     private static String KEY_NAME;
+    private static String IAM_ROLE_NAME;
     private static String TABLE_NAME ="request-complexity-table";
     private static final int ROUND_SCALE = 100;   // round request args to the hundreds, to group similar request args together
     private static final double MAX_LAMBDA_COMPLEXITY = 1500; 
-    private static final double MAX_COMPLEXITY = 10000;
+    private static final double MAX_COMPLEXITY = 40000;
     private static final double DEFAULT_RAYTRACE = 1000;
     private static final double DEFAULT_TEX_RAYTRACE = 3000;
     private static final double DEFAULT_BLUR = 7500;
     private static final double DEFAULT_ENHANCE = 4300;
-    private static final double REQUEST_TRIGGER = 10;   // every n requests, go get values at dynamoDB
+    private static final double REQUEST_TRIGGER = 2;   // every n requests, go get values at dynamoDB
     private static final double LINE_COEF = 0.000001;
     private static final double EX_COEF = 0.5;
     private static final double TS_COEF = 0.1;
@@ -51,12 +52,13 @@ public class LoadBalancer {
 
 
 
-    public LoadBalancer(String awsRegion, String secGroupId, String amiId, String keyName) {
+    public LoadBalancer(String awsRegion, String secGroupId, String amiId, String keyName, String roleName) {
         System.out.println("Launching Load Balancer...");
         AWS_REGION = awsRegion;
         SEC_GROUP_ID = secGroupId;
         AMI_ID = amiId;
         KEY_NAME = keyName;
+        IAM_ROLE_NAME = roleName;
         availableInstances = new ArrayList<String>();
         try {
             System.out.println("Initializing DynamoDB...");
@@ -178,7 +180,7 @@ public class LoadBalancer {
     }
 
     public double calculateComplexity(String nLines) {
-        int lines = Integer.parseInt(nLines);
+        long lines = Long.parseLong(nLines);
         double complexity = lines * LINE_COEF;
         return complexity;
     }
@@ -258,19 +260,28 @@ public class LoadBalancer {
             ScanRequest scanRequest = new ScanRequest().withTableName(TABLE_NAME);
             ScanResult scanResult = dynamoDB.scan(scanRequest);
             List<Map<String,AttributeValue>> results = scanResult.getItems();
+            if (results.size() == 0) {
+                System.out.println("No results in DB");
+            }
             for (Map<String, AttributeValue> row : results) {
                 String key = row.get("type-args").getS();
-                String attr = row.get("line").getS();
+                String attr = row.get("line").getN();
+                if (key == null) {
+                    System.out.println("Key is null");
+                    continue;
+                }
                 String[] keySplit = key.split(";");
                 int type = Integer.parseInt(keySplit[0]);
                 Integer[] args = new Integer[2];
-                for (int i = 1; i < keySplit.length; i++) {
-                    args[i-1] = Integer.parseInt(keySplit[i]);
+                if (type != 1) {
+                    for (int i = 1; i < keySplit.length; i++) {
+                        args[i-1] = Integer.parseInt(keySplit[i]);
+                    }
                 }
                 double complexity = calculateComplexity(attr);
                 switch (type) {
                     case 1: 
-                        blurEstimates.put(args[0]+args[1], complexity);
+                        rayEstimates.put(keySplit[1]+keySplit[2], complexity);
                         break;
                     case 2:
                         blurEstimates.put(args[0], complexity);

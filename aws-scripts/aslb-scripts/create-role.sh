@@ -4,6 +4,7 @@ source config.sh
 
 # Variables
 ROLE_NAME="ASLBRole"
+POLICY_NAME="CustomPermissionPolicy"
 TRUST_POLICY='{
   "Version": "2012-10-17",
   "Statement": [
@@ -23,6 +24,22 @@ TRUST_POLICY='{
     }
   ]
 }'
+CUSTOM_POLICY='{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Statement1",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::381491903948:role/WorkerRole"
+      ]
+    }
+  ]
+}'
 
 # Check if IAM Role exists
 ROLE_EXISTS=$(aws iam get-role --role-name $ROLE_NAME 2>&1)
@@ -35,9 +52,26 @@ else
   echo "IAM Role '$ROLE_NAME' already exists. Skipping creation."
 fi
 
-# Attach Policies to the Role
+# Attach predefined policies to the Role
 aws iam attach-role-policy --role-name $ROLE_NAME --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess
 aws iam attach-role-policy --role-name $ROLE_NAME --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
 aws iam attach-role-policy --role-name $ROLE_NAME --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
-echo "Policies AmazonEC2FullAccess, AmazonDynamoDBFullAccess and AWSLambdaBasicExecutionRole attached to IAM Role '$ROLE_NAME'."
+echo "Policies AmazonEC2FullAccess, AmazonDynamoDBFullAccess, and AWSLambdaBasicExecutionRole attached to IAM Role '$ROLE_NAME'."
+
+# Check if the custom permission policy exists
+POLICY_ARN=$(aws iam list-policies --query "Policies[?PolicyName=='$POLICY_NAME'].Arn" --output text)
+
+if [[ -z "$POLICY_ARN" ]]; then
+  # Create the custom permission policy
+  POLICY_ARN=$(aws iam create-policy --policy-name $POLICY_NAME --policy-document "$CUSTOM_POLICY" --query 'Policy.Arn' --output text)
+  echo "Custom permission policy '$POLICY_NAME' created successfully."
+else
+  echo "Custom permission policy '$POLICY_NAME' already exists. Skipping creation."
+fi
+
+# Attach the custom permission policy to the role
+aws iam attach-role-policy --role-name $ROLE_NAME --policy-arn "$POLICY_ARN"
+
+echo "Custom permission policy attached to IAM Role '$ROLE_NAME'."
+

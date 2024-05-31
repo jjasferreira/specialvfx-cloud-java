@@ -1,12 +1,16 @@
 package pt.ulisboa.tecnico.cnv.aslb;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.Base64;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 
 import com.sun.net.httpserver.HttpExchange;
 
@@ -61,8 +65,16 @@ public class EnhanceRequestHandler extends RequestHandler {
         String[] resultSplits = result.split(",");
         String encodedImage = resultSplits[1];
         byte[] decoded = Base64.getDecoder().decode(encodedImage);
-        String[] args = new String[1];
-        args[0] = String.valueOf(decoded.length);
-        return args;
+        ByteArrayInputStream bais = new ByteArrayInputStream(decoded);
+        try {
+            BufferedImage bi = ImageIO.read(bais);
+            String[] args = new String[1];
+            args[0] = String.valueOf(bi.getWidth() * bi.getHeight());
+            return args;
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            return new String[2];
+        }
     }
 }
