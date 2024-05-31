@@ -1,8 +1,9 @@
 #!/bin/bash
 
 source config.sh
+
 # Variables
-ROLE_NAME="ASLB"
+ROLE_NAME="ASLBRole"
 TRUST_POLICY='{
   "Version": "2012-10-17",
   "Statement": [
@@ -23,7 +24,6 @@ TRUST_POLICY='{
   ]
 }'
 
-
 # Check if IAM Role exists
 ROLE_EXISTS=$(aws iam get-role --role-name $ROLE_NAME 2>&1)
 
@@ -40,5 +40,4 @@ aws iam attach-role-policy --role-name $ROLE_NAME --policy-arn arn:aws:iam::aws:
 aws iam attach-role-policy --role-name $ROLE_NAME --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
 aws iam attach-role-policy --role-name $ROLE_NAME --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
-echo "Policies AmazonEC2FullAccess and AmazonDynamoDBFullAccess attached to IAM Role '$ROLE_NAME'."
-
+echo "Policies AmazonEC2FullAccess, AmazonDynamoDBFullAccess and AWSLambdaBasicExecutionRole attached to IAM Role '$ROLE_NAME'."

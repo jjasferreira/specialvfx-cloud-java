@@ -1,8 +1,9 @@
 #!/bin/bash
 
 source config.sh
+
 # Variables
-SECURITY_GROUP_NAME="MySecurityGroup"
+SECURITY_GROUP_NAME="SecurityGroup"
 DESCRIPTION="Security group for SSH, HTTP, HTTPS, and custom TCP on port 8000"
 
 # Check if a default VPC exists
@@ -40,4 +41,3 @@ fi
 
 # Set environment variable
 echo "export AWS_SECURITY_GROUP=$SECURITY_GROUP_ID" >> config.sh
-

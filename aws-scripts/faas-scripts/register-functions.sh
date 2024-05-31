@@ -2,7 +2,7 @@
 
 source ../config.sh
 
-#Create ray tracer function
+# Create Raytracer function
 aws lambda create-function \
 	--function-name raytrace-func \
 	--zip-file fileb://../../webserver/raytracer/target/raytracer-1.0.0-SNAPSHOT-jar-with-dependencies.jar \
@@ -10,10 +10,9 @@ aws lambda create-function \
 	--runtime java11 \
 	--timeout 5 \
 	--memory-size 256 \
-	--role arn:aws:iam::$AWS_ACCOUNT_ID:role/ASLB
+	--role arn:aws:iam::$AWS_ACCOUNT_ID:role/ASLBRole
 
-
-#Create blur function
+# Create Blur function
 aws lambda create-function \
         --function-name blur-func \
 	--zip-file fileb://../../webserver/imageproc/target/imageproc-1.0.0-SNAPSHOT-jar-with-dependencies.jar \
@@ -21,10 +20,9 @@ aws lambda create-function \
         --runtime java11 \
 	--timeout 5 \
 	--memory-size 256 \
-        --role arn:aws:iam::$AWS_ACCOUNT_ID:role/ASLB
+        --role arn:aws:iam::$AWS_ACCOUNT_ID:role/ASLBRole
 
-
-#Create enhance function
+# Create Enhance function
 aws lambda create-function \
         --function-name enhance-func \
 	--zip-file fileb://../../webserver/imageproc/target/imageproc-1.0.0-SNAPSHOT-jar-with-dependencies.jar \
@@ -32,7 +30,6 @@ aws lambda create-function \
         --runtime java11 \
 	--timeout 5 \
 	--memory-size 256 \
-        --role arn:aws:iam::$AWS_ACCOUNT_ID:role/ASLB
+        --role arn:aws:iam::$AWS_ACCOUNT_ID:role/ASLBRole
 
 echo "All functions have been deployed"
-

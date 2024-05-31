@@ -13,13 +13,14 @@ find . -type f -name '*.sh' -exec chmod 777 {} +
 chmod 400 mykeypair.pem
 ```
 
-- Execute [`setup.sh`](setup.sh) to setup necessary IAM role, VPC and security group;
-- Compile the [`specialvfx`](../specialvfx/) project by running `mvn package` and execute [`create-worker-image.sh`](create-worker-image.sh) to register the Worker AMI;
-- Update the first constants of the code contained in file [ASLBServer.java](../aslb/src/main/java/pt/ulisboa/tecnico/cnv/aslb/ASLBServer.java);
-- Compile the [`aslb`](../aslb/) project by running `mvn package` and execute [`create-aslb-image.sh`](create-aslb-image.sh) to register the AutoScaler & LoadBalancer AMI;
-- Execute [`run-aslb-server.sh`](run-aslb-server.sh) to launch the AutoScaler & LoadBalancer in the cloud;
+- Execute [`create-vpc-security-group.sh`](create-vpc-security-group.sh) to setup VPC and security group;
+- Compile the [`specialvfx`](../specialvfx/) project by running `mvn clean package`;
+- Execute [`create-worker-image.sh`](create-worker-image.sh) to register the Worker AMI;
+- Update the first constants of the code contained in file [ASLBServer.java](../aslb/src/main/java/pt/ulisboa/tecnico/cnv/aslb/ASLBServer.java) with the values obtained from the previous steps;
+- Compile the [`aslb`](../aslb/) project by running `mvn clean package`;
+- Execute [`create-aslb-image.sh`](create-aslb-image.sh) to register the AutoScaler & LoadBalancer AMI;
+- Execute [`launch-aslb.sh`](launch-aslb.sh) to run the AutoScaler & LoadBalancer server in an instance of the cloud;
 
 ---
 
-- When done, execute [`cleanup.sh`](cleanup.sh) to delete all instances, images, snapshots and volumes;
-- Lastly, the script [`delete-setup.sh`](delete-setup.sh) deletes all things created during the `setup.sh` script.
+- When done, execute [`cleanup.sh`](cleanup.sh) to delete all instances, images, snapshots, volumes, the VPC and the security group.

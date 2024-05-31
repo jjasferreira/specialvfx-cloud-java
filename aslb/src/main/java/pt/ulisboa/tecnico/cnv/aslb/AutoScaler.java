@@ -24,18 +24,21 @@ public class AutoScaler {
     private static final int SCALE_PERIOD = 60; // seconds
     private static final double MIN_THRESHOLD = 20.0; // CPU utilization %
     private static final double MAX_THRESHOLD = 70.0; // CPU utilization %
+    private static final int MIN_INSTANCES = 1;
+    private static final int MAX_INSTANCES = 20;
 
     private AmazonCloudWatch cloudWatch;
     private AmazonEC2 ec2;
-    private LoadBalancer loadBalancer;
+    private LoadBalancer lb;
     private Set<String> decomissionedInstances;
 
     public AutoScaler(String awsRegion, String secGroupId, String amiId, String keyName, LoadBalancer lb) {
-        System.out.println("Launching Auto Scaler...");
+        System.out.println("[AS] Launching Auto Scaler with " + SCALE_PERIOD + "s period, " + MIN_THRESHOLD + "% min threshold and " + MAX_THRESHOLD + "% max threshold");
         AWS_REGION = awsRegion;
         SEC_GROUP_ID = secGroupId;
         AMI_ID = amiId;
         KEY_NAME = keyName;
+        System.out.println("[AS] AWS Region: " + AWS_REGION + ", Security Group ID: " + SEC_GROUP_ID + ", Worker AMI ID: " + AMI_ID + ", Key Pair: " + KEY_NAME);
         this.cloudWatch = AmazonCloudWatchClientBuilder.standard()
             .withRegion(AWS_REGION)
             .withCredentials(new InstanceProfileCredentialsProvider(false))
@@ -44,7 +47,7 @@ public class AutoScaler {
             .withRegion(AWS_REGION)
             .withCredentials(new InstanceProfileCredentialsProvider(false))
             .build();
-        this.loadBalancer = lb;
+        this.lb = lb;
         this.decomissionedInstances = new HashSet<>();
 
         launchFirstInstance();
@@ -54,7 +57,7 @@ public class AutoScaler {
 
     private void launchFirstInstance() {
         try {
-            System.out.println("Starting a new instance.");
+            System.out.println("[AS] Launching the first instance...");
             RunInstancesRequest runInstancesRequest = new RunInstancesRequest()
                 .withImageId(AMI_ID)
                 .withInstanceType("t2.micro")
@@ -67,10 +70,10 @@ public class AutoScaler {
             String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
             String newInstanceIP = runInstancesResult.getReservation().getInstances().get(0).getPublicIpAddress();
             InstanceStats stats = new InstanceStats(newInstanceIP);
-            loadBalancer.instanceStats.put(newInstanceId, stats);
-            loadBalancer.availableInstances.add(newInstanceId);
+            lb.instanceStats.put(newInstanceId, stats);
+            lb.availableInstances.add(newInstanceId);
 
-            System.out.println("Initial instance launched: " + newInstanceId);
+            System.out.println("[AS] Sucessfully launched first instance: " + newInstanceId);
 
         } catch (AmazonServiceException ase) {
             System.out.println("Caught Exception: " + ase.getMessage());
@@ -91,24 +94,30 @@ public class AutoScaler {
                 }
             }
         });
+        System.out.println("[AS] Starting AutoScaling thread...");
         autoScalerThread.start();
     }
 
     private void checkAndScale() {
+        System.out.println("[AS] Running AutoScaling check...");
         double averageCpuUtilization = getAverageCpuUtilization();
-        if (averageCpuUtilization < MIN_THRESHOLD) {
+        System.out.println("[AS] Average CPU utilization: " + averageCpuUtilization + "%");
+        int numRunningInstances = lb.availableInstances.size();
+        System.out.println("[AS] Number of running instances: " + numRunningInstances);
+        if (averageCpuUtilization < MIN_THRESHOLD && numRunningInstances > MIN_INSTANCES) {
             scaleIn();
-        } else if (averageCpuUtilization > MAX_THRESHOLD) {
+        } else if (averageCpuUtilization > MAX_THRESHOLD && numRunningInstances < MAX_INSTANCES) {
             scaleOut();
         }
         cleanDecomissionedInstances();
     }
 
     private double getAverageCpuUtilization() {
+        System.out.println("[AS] Checking CPU utilization...");
         double totalCpuUtilization = 0;
-        int instanceCount = loadBalancer.availableInstances.size();
+        int instanceCount = lb.availableInstances.size();
 
-        for (String instanceId : loadBalancer.availableInstances) {
+        for (String instanceId : lb.availableInstances) {
             GetMetricStatisticsRequest request = new GetMetricStatisticsRequest()
                 .withStartTime(new Date(System.currentTimeMillis() - SCALE_PERIOD * 1000))
                 .withNamespace("AWS/EC2")
@@ -123,7 +132,7 @@ public class AutoScaler {
 
             if (!datapoints.isEmpty()) {
                 double cpuUtilization = datapoints.get(0).getAverage();
-                System.out.println("CPU utilization for instance " + instanceId + " = " + cpuUtilization);
+                System.out.println("[AS] CPU utilization for instance " + instanceId + " = " + cpuUtilization);
                 totalCpuUtilization += cpuUtilization;
             }
         }
@@ -131,11 +140,12 @@ public class AutoScaler {
     }
 
     private void scaleIn() {
+        System.out.println("[AS] Scaling in...");
         String instanceToTerminate = null;
         int fewestRequests = Integer.MAX_VALUE;
 
-        for (String instanceId : loadBalancer.availableInstances) {
-            InstanceStats stats = loadBalancer.instanceStats.get(instanceId);
+        for (String instanceId : lb.availableInstances) {
+            InstanceStats stats = lb.instanceStats.get(instanceId);
             int ongoingRequests = stats.getOngoingRequests();
 
             if (ongoingRequests == 0 && !decomissionedInstances.contains(instanceId)) {
@@ -148,13 +158,15 @@ public class AutoScaler {
             }
         }
         if (instanceToTerminate != null) {
+            System.out.println("[AS] Decomissioned instance: " + instanceToTerminate);
+            lb.availableInstances.remove(instanceToTerminate);
             decomissionedInstances.add(instanceToTerminate);
         }
     }
 
     private void scaleOut() {
         try {
-            System.out.println("Starting a new instance.");
+            System.out.println("[AS] Scaling out: starting a new instance...");
             RunInstancesRequest runInstancesRequest = new RunInstancesRequest()
                 .withImageId(AMI_ID)
                 .withInstanceType("t2.micro")
@@ -162,16 +174,13 @@ public class AutoScaler {
                 .withMaxCount(1)
                 .withKeyName(KEY_NAME)
                 .withSecurityGroupIds(SEC_GROUP_ID);
-
             RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
             String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
             String newInstanceIP = runInstancesResult.getReservation().getInstances().get(0).getPublicIpAddress();
             InstanceStats stats = new InstanceStats(newInstanceIP);
-            loadBalancer.instanceStats.put(newInstanceId, stats);
-            loadBalancer.availableInstances.add(newInstanceId);
-
-            System.out.println("Scaled out: New instance launched: " + newInstanceId);
-
+            lb.instanceStats.put(newInstanceId, stats);
+            lb.availableInstances.add(newInstanceId);
+            System.out.println("[AS] Sucessfully launched new instance: " + newInstanceId);
         } catch (AmazonServiceException ase) {
             System.out.println("Caught Exception: " + ase.getMessage());
             System.out.println("Response Status Code: " + ase.getStatusCode());
@@ -182,11 +191,12 @@ public class AutoScaler {
 
     private void terminateInstance(String instanceId) {
         try {
-            System.out.println("Terminating instance: " + instanceId);
+            System.out.println("[AS] Terminating instance: " + instanceId);
             TerminateInstancesRequest terminateRequest = new TerminateInstancesRequest().withInstanceIds(instanceId);
             ec2.terminateInstances(terminateRequest);
-            loadBalancer.availableInstances.remove(instanceId);
-            loadBalancer.instanceStats.remove(instanceId);
+            lb.availableInstances.remove(instanceId);
+            lb.instanceStats.remove(instanceId);
+            System.out.println("[AS] Sucessfully terminated instance: " + instanceId);
         } catch (AmazonServiceException ase) {
             System.out.println("Caught Exception: " + ase.getMessage());
             System.out.println("Response Status Code: " + ase.getStatusCode());
@@ -196,8 +206,9 @@ public class AutoScaler {
     }
 
     private void cleanDecomissionedInstances() {
+        System.out.println("[AS] Cleaning decomissioned instances...");
         for (String instanceId : decomissionedInstances) {
-            InstanceStats stats = loadBalancer.instanceStats.get(instanceId);
+            InstanceStats stats = lb.instanceStats.get(instanceId);
             if (stats.getOngoingRequests() == 0) {
                 terminateInstance(instanceId);
                 decomissionedInstances.remove(instanceId);

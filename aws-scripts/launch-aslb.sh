@@ -2,15 +2,19 @@
 
 source config.sh
 
-# Run new instance
+METADATA_OPTIONS='{"HttpTokens":"optional"}'
+
+# Run new instance for the AutoScaler & LoadBalancer
 aws ec2 run-instances \
-	--image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2 \
-	--instance-type t2.micro \
-	--key-name $AWS_KEYPAIR_NAME \
-	--security-group-ids $AWS_SECURITY_GROUP \
+        --image-id $(cat aslb-scripts/image.id) \
+        --instance-type t2.micro \
+        --key-name $AWS_KEYPAIR_NAME \
+        --security-group-ids $AWS_SECURITY_GROUP \
+	--metadata-options $METADATA_OPTIONS \
 	--iam-instance-profile Name=ASLBInstanceProfile \
-	--monitoring Enabled=true | jq -r ".Instances[0].InstanceId" > aslb-scripts/instance.id
-echo "New instance with id $(cat aslb-scripts/instance.id)."
+        --monitoring Enabled=true | jq -r ".Instances[0].InstanceId" > aslb-scripts/instance.id
+
+echo "AutoScaler & LoadBalancer server instance has been launched with id $(cat aslb-scripts/instance.id)."
 
 # Wait for instance to be running
 aws ec2 wait instance-running --instance-ids $(cat aslb-scripts/instance.id)
