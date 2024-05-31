@@ -265,7 +265,7 @@ public class LoadBalancer {
             }
             for (Map<String, AttributeValue> row : results) {
                 String key = row.get("type-args").getS();
-                String attr = row.get("line").getN();
+                String attr = row.get("line").getS();
                 if (key == null) {
                     System.out.println("[LB] Key is null");
                     continue;
