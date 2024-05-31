@@ -27,12 +27,14 @@ public class LoadBalancer {
     private static String KEY_NAME;
     private static String TABLE_NAME ="request-complexity-table";
     private static final int ROUND_SCALE = 100;   // round request args to the hundreds, to group similar request args together
-    private static final double MAX_LAMBDA_COMPLEXITY = 20; 
-    private static final double MAX_COMPLEXITY = 100;
-    private static final double REQUEST_TRIGGER = 100;   // every n requests, go get values at dynamoDB
-    private static final double LINE_COEF = 0.2;
-    private static final double BLOCK_COEF = 0.5;
-    private static final double FUNC_COEF = 0.7;
+    private static final double MAX_LAMBDA_COMPLEXITY = 1500; 
+    private static final double MAX_COMPLEXITY = 10000;
+    private static final double DEFAULT_RAYTRACE = 1000;
+    private static final double DEFAULT_TEX_RAYTRACE = 3000;
+    private static final double DEFAULT_BLUR = 7500;
+    private static final double DEFAULT_ENHANCE = 4300;
+    private static final double REQUEST_TRIGGER = 10;   // every n requests, go get values at dynamoDB
+    private static final double LINE_COEF = 0.000001;
     private static final double EX_COEF = 0.5;
     private static final double TS_COEF = 0.1;
 
@@ -45,7 +47,7 @@ public class LoadBalancer {
     // The following ordered maps provide a "local" database representation of the DynamoDB
     private TreeMap<Integer, Double> blurEstimates = new TreeMap<Integer, Double>();         // <imageSize, complexity>
     private TreeMap<Integer, Double> enhanceEstimates = new TreeMap<Integer, Double>();      // <imageSize, complexity>
-    private TreeMap<Integer, TreeMap<Integer, Double>> rayEstimates = new TreeMap<Integer, TreeMap<Integer, Double>>();    // <sceneSize, <windowSize, complexity>>
+    private TreeMap<String, Double> rayEstimates = new TreeMap<String, Double>();    // <hash1;hash2,complexity>>
 
 
 
@@ -105,14 +107,25 @@ public class LoadBalancer {
 
     public double estimateComplexity(int type, String[] args) {
         List<Integer> roundedArgs = new ArrayList<>();
+        double comp;
         switch (type) {
-            case 1: roundedArgs.add(roundArg(args[0])); 
-                    roundedArgs.add(roundArg(args[0])); 
-                    return getComplexityRayTracer(roundedArgs);
+            case 1: return getComplexityRayTracer(args[0], args[1]);
             case 2: roundedArgs.add(roundArg(args[0]));
-                    return getComplexityImageProc(blurEstimates, roundedArgs);
+                    comp = getComplexityImageProc(blurEstimates, roundedArgs);
+                    if (comp == 0) {
+                        return DEFAULT_BLUR;
+                    }
+                    else {
+                        return comp;
+                    }
             case 3: roundedArgs.add(roundArg(args[0])); 
-                    return getComplexityImageProc(enhanceEstimates, roundedArgs);
+                    comp = getComplexityImageProc(enhanceEstimates, roundedArgs);
+                    if (comp == 0) {
+                        return DEFAULT_ENHANCE;
+                    }
+                    else {
+                        return comp;
+                    }
             default: System.err.println("Type not recognized"); return -1;
         }
     }
@@ -123,43 +136,18 @@ public class LoadBalancer {
         return argument;
     }
 
-    public double getComplexityRayTracer(List<Integer> roundedArgs) {
-        TreeMap<Integer, Double> lowerMap = new TreeMap<Integer, Double>();
-        int lowerScene = 0;
-        for (Map.Entry<Integer, TreeMap<Integer, Double>> entry: rayEstimates.entrySet()) {
-            if (entry.getKey() < roundedArgs.get(0)) {
-                lowerMap = entry.getValue();
-                lowerScene = entry.getKey();
-            }
-            else if (entry.getKey() == roundedArgs.get(0)) {
-                lowerMap = entry.getValue();
-                lowerScene = 1;
-                break;
-            }
-            else {
-                if (lowerScene == 0) {
-                    lowerMap = entry.getValue();
-                    lowerScene = 1;
-                    break;
-                }
-                else {
-                    if (Math.abs(entry.getKey() - roundedArgs.get(0)) < Math.abs(lowerScene - roundedArgs.get(0))) {
-                        lowerMap = entry.getValue();
-                        break;
-                    }
-                    else {
-                        break;
-                    }
-                }
-            }
-        }
-        if (lowerScene == 0) {
-            return 0;
+    public double getComplexityRayTracer(String sceneHash, String textHash) {
+        String key = sceneHash + textHash;
+        if (rayEstimates.containsKey(key)) {
+            return rayEstimates.get(key);
         }
         else {
-            List<Integer> window = new ArrayList<>();
-            window.add(roundedArgs.get(1));
-            return getComplexityImageProc(lowerMap, window);
+            if (textHash.equals("null")) {
+                return DEFAULT_RAYTRACE;
+            }
+            else {
+                return DEFAULT_TEX_RAYTRACE;
+            }
         }
     }
 
@@ -189,30 +177,33 @@ public class LoadBalancer {
         return lowerComp;  
     }
 
-    public double calculateComplexity(String nLines, String nBlocks, String nFuncs) {
+    public double calculateComplexity(String nLines) {
         int lines = Integer.parseInt(nLines);
-        int blocks = Integer.parseInt(nBlocks);
-        int funcs = Integer.parseInt(nFuncs);
-        double complexity = lines * LINE_COEF + blocks * BLOCK_COEF + funcs * FUNC_COEF;
+        double complexity = lines * LINE_COEF;
         return complexity;
     }
 
     
     public String[] getBestInstance(int requestType, String[] args) {
         double complexity = estimateComplexity(requestType, args);
+        System.out.println("Complexity: " + complexity);
         if (!notFitForAny(complexity)) {
+            System.out.println("Fit for some");
             String lowerId = "";
             double lowerComplexity = MAX_COMPLEXITY;
             for (String instanceId : availableInstances) {
                 double instanceComplexity = instanceStats.get(instanceId).getTotalComplexity();
-                if (instanceComplexity < lowerComplexity) {
+                System.out.println("Total Complexity of instance " + instanceId + "is " + instanceComplexity);
+                if (instanceComplexity <= lowerComplexity) {
                     lowerId = instanceId;
                     lowerComplexity = instanceComplexity;
                 }
             }
+            System.out.println("Best instance is " + lowerId);
             return getInstanceInformation(requestType, lowerId, complexity);
         }
         else {
+            System.out.println("Not fit for any");
             String bestId = bestFutureCase(complexity);
             return getInstanceInformation(requestType, bestId, complexity);
         }
@@ -232,6 +223,7 @@ public class LoadBalancer {
             default: instanceInfo[3] = "";
         }
         instanceInfo[4] = String.valueOf(complexity);
+        System.out.println("The best instance info is: id " + instanceInfo[0] + " ; ip " + instanceInfo[1] + " ; port " + instanceInfo[2] + " ; type " + instanceInfo[3] + " ; complexity " + complexity);
         return instanceInfo;
     }
 
@@ -268,25 +260,17 @@ public class LoadBalancer {
             List<Map<String,AttributeValue>> results = scanResult.getItems();
             for (Map<String, AttributeValue> row : results) {
                 String key = row.get("type-args").getS();
-                String attr = row.get("line-block-func").getS();
+                String attr = row.get("line").getS();
                 String[] keySplit = key.split(";");
-                String[] attrSplit = attr.split(";");
                 int type = Integer.parseInt(keySplit[0]);
                 Integer[] args = new Integer[2];
                 for (int i = 1; i < keySplit.length; i++) {
                     args[i-1] = Integer.parseInt(keySplit[i]);
                 }
-                double complexity = calculateComplexity(attrSplit[0], attrSplit[1], attrSplit[2]);
+                double complexity = calculateComplexity(attr);
                 switch (type) {
                     case 1: 
-                        if (rayEstimates.containsKey(args[0])) {
-                            rayEstimates.get(args[0]).put(args[1], complexity);
-                        }
-                        else {
-                            TreeMap<Integer, Double> newMap = new TreeMap<>();
-                            newMap.put(args[1], complexity);
-                            rayEstimates.put(args[0], newMap);
-                        }
+                        blurEstimates.put(args[0]+args[1], complexity);
                         break;
                     case 2:
                         blurEstimates.put(args[0], complexity);
@@ -304,7 +288,7 @@ public class LoadBalancer {
 
     private void initializeDynamoDB() {
         dynamoDB = AmazonDynamoDBClientBuilder.standard()
-            .withCredentials(new InstanceProfileCredentialsProvider(false))
+            .withCredentials(new EnvironmentVariableCredentialsProvider())
             .withRegion(AWS_REGION)
             .build();
 
@@ -312,8 +296,10 @@ public class LoadBalancer {
             String tableName = TABLE_NAME;
 
             // Delete table if it exists, to clear old values
+            System.out.println("Deleting old table");
             TableUtils.deleteTableIfExists(dynamoDB, new DeleteTableRequest().withTableName(tableName));
-
+            Thread.sleep(20000);
+            System.out.println("Creating new table");
 
             // Table has "type;arg1;arg2;..." as key and "lines;blocks;functions" as values
             CreateTableRequest createTableRequest = new CreateTableRequest().withTableName(tableName)

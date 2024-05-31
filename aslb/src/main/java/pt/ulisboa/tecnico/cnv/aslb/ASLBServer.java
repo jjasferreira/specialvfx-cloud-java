@@ -6,9 +6,9 @@ import com.sun.net.httpserver.HttpServer;
 
 public class ASLBServer {
 
-    private static final String AWS_REGION = "XX-XXXX-X";
-    private static final String SEC_GROUP_ID = "sg-XXXXXXXXXXXXXXX";
-    private static final String AMI_ID = "ami-XXXXXXXXXXXXXXXXX";
+    private static final String AWS_REGION = "eu-west-3";
+    private static final String SEC_GROUP_ID = "sg-0854f2c7f591ee406";
+    private static final String AMI_ID = "ami-061e86898c87208ae";
     private static final String KEY_NAME = "mykeypair";
 
     public static void main(String[] args) throws Exception {

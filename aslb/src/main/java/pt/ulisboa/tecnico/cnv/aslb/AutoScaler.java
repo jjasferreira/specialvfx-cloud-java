@@ -1,6 +1,7 @@
 package pt.ulisboa.tecnico.cnv.aslb;
 
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
@@ -38,11 +39,11 @@ public class AutoScaler {
         KEY_NAME = keyName;
         this.cloudWatch = AmazonCloudWatchClientBuilder.standard()
             .withRegion(AWS_REGION)
-            .withCredentials(new InstanceProfileCredentialsProvider(false))
+            .withCredentials(new EnvironmentVariableCredentialsProvider())
             .build();
         this.ec2 = AmazonEC2ClientBuilder.standard()
             .withRegion(AWS_REGION)
-            .withCredentials(new InstanceProfileCredentialsProvider(false))
+            .withCredentials(new EnvironmentVariableCredentialsProvider())
             .build();
         this.loadBalancer = lb;
         this.decomissionedInstances = new HashSet<>();
@@ -65,12 +66,33 @@ public class AutoScaler {
 
             RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
             String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
-            String newInstanceIP = runInstancesResult.getReservation().getInstances().get(0).getPublicIpAddress();
-            InstanceStats stats = new InstanceStats(newInstanceIP);
-            loadBalancer.instanceStats.put(newInstanceId, stats);
-            loadBalancer.availableInstances.add(newInstanceId);
+            DescribeInstancesRequest request = new DescribeInstancesRequest();
+            List<String> instanceIds = new ArrayList<String>();
+            instanceIds.add(newInstanceId);
+            request.setInstanceIds(instanceIds);
 
-            System.out.println("Initial instance launched: " + newInstanceId);
+            System.out.println("Waiting until instance is operational...");
+            try {
+                Thread.sleep(60000);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            DescribeInstancesResult result = ec2.describeInstances(request);
+            List<Reservation> reservations = result.getReservations();
+            for (Reservation reservation  : reservations) {
+                List<Instance> instances1 = reservation.getInstances();
+                for (Instance instance : instances1) {
+                    String newInstanceIP = instance.getPublicIpAddress();
+                    System.out.println("New instance ip " + newInstanceIP);
+                    InstanceStats stats = new InstanceStats(newInstanceIP);
+                    loadBalancer.instanceStats.put(newInstanceId, stats);
+                    loadBalancer.availableInstances.add(newInstanceId);
+                }
+            }
+
+            System.out.println("Time has passed, system may start receiving requests");
 
         } catch (AmazonServiceException ase) {
             System.out.println("Caught Exception: " + ase.getMessage());
@@ -154,6 +176,7 @@ public class AutoScaler {
 
     private void scaleOut() {
         try {
+            loadBalancer.isOutscaling = true;
             System.out.println("Starting a new instance.");
             RunInstancesRequest runInstancesRequest = new RunInstancesRequest()
                 .withImageId(AMI_ID)
@@ -169,6 +192,7 @@ public class AutoScaler {
             InstanceStats stats = new InstanceStats(newInstanceIP);
             loadBalancer.instanceStats.put(newInstanceId, stats);
             loadBalancer.availableInstances.add(newInstanceId);
+            loadBalancer.isOutscaling = false;
 
             System.out.println("Scaled out: New instance launched: " + newInstanceId);
 

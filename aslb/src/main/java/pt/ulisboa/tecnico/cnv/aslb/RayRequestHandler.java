@@ -2,6 +2,7 @@ package pt.ulisboa.tecnico.cnv.aslb;
 
 import java.io.InputStream;
 import java.net.URI;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -108,15 +109,52 @@ public class RayRequestHandler extends RequestHandler{
     public String[] getCallArgs(HttpExchange t) {
         URI requestedUri = t.getRequestURI();
         String query = requestedUri.getRawQuery();
-        Map<String, String> parameters = queryToMap(query);
+        ObjectMapper mapper = new ObjectMapper();
 
-        int scols = Integer.parseInt(parameters.get("scols"));
-        int srows = Integer.parseInt(parameters.get("srows"));
-        int wcols = Integer.parseInt(parameters.get("wcols"));
-        int wrows = Integer.parseInt(parameters.get("wrows"));
+        InputStream stream = t.getRequestBody();
+        Map<String, Object> body = null; 
+        try {
+            body = mapper.readValue(stream, new TypeReference<>() {});
+        }
+        catch (IOException io) {
+            io.printStackTrace();
+            return new String[2];
+        }
+
+        byte[] input = ((String) body.get("scene")).getBytes();
+        byte[] texmap = null;
+        if (body.containsKey("texmap")) {
+            // Convert ArrayList<Integer> to byte[]
+            ArrayList<Integer> texmapBytes = (ArrayList<Integer>) body.get("texmap");
+            texmap = new byte[texmapBytes.size()];
+            for (int i = 0; i < texmapBytes.size(); i++) {
+                texmap[i] = texmapBytes.get(i).byteValue();
+            }
+        }
+
+        MessageDigest md = null;
+        try {
+            md = MessageDigest.getInstance("SHA-256");
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return new String[2];
+        }
+
+        byte[] inputHash = md.digest(input);
+        byte[] textHash = null;
+        if (texmap != null) {
+            textHash = md.digest(texmap);
+        }
+
         String[] args = new String[2];
-        args[0] = String.valueOf(scols*srows);
-        args[1] = String.valueOf(wcols*wrows);
+        args[0] = Base64.getEncoder().encodeToString(inputHash);
+        if (textHash == null) {
+            args[1] = "null";
+        }
+        else {
+            args[1] = Base64.getEncoder().encodeToString(textHash);
+        }
         return args;
     }
 
