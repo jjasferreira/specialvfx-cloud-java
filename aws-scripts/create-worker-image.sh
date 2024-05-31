@@ -2,6 +2,12 @@
 
 source config.sh
 
+# Create IAM Role
+$DIR/worker-scripts/add-worker-role.sh
+
+# Create Instance Profile
+$DIR/worker-scripts/add-worker-instance-profile.sh
+
 # Launch a VM instance
 $DIR/worker-scripts/launch-vm.sh
 

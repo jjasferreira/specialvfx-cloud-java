@@ -8,6 +8,7 @@ aws ec2 run-instances \
 	--instance-type t2.micro \
 	--key-name $AWS_KEYPAIR_NAME \
 	--security-group-ids $AWS_SECURITY_GROUP \
+	--iam-instance-profile Name=WORKERInstanceProfile \
 	--monitoring Enabled=true | jq -r ".Instances[0].InstanceId" > worker-scripts/instance.id
 echo "New instance with id $(cat worker-scripts/instance.id)."
 
