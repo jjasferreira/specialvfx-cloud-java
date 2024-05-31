@@ -1,11 +1,10 @@
 package pt.ulisboa.tecnico.cnv.javassist;
 
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
-import com.amazonaws.services.dynamodbv2.model.WriteRequest;
+import com.amazonaws.services.dynamodbv2.model.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,8 +22,8 @@ public class AmazonDynamoDBHelper {
 
     private static AmazonDynamoDB dynamoDB;
 
-    //private static final String tableName = "request-complexity-table";
-    private static final String tableName = "test-table";
+    private static final String tableName = "request-complexity-table";
+    //private static final String tableName = "test-table";
 
     private static Map<String, List<WriteRequest>> requestItems = new HashMap<>();
     public static List<WriteRequest> writeRequests = new ArrayList<>();
@@ -32,7 +31,8 @@ public class AmazonDynamoDBHelper {
 
     public AmazonDynamoDBHelper() {
         dynamoDB = AmazonDynamoDBClientBuilder.standard()
-                .withCredentials(new EnvironmentVariableCredentialsProvider())
+                .withCredentials(new InstanceProfileCredentialsProvider(false))
+                //.withCredentials(new EnvironmentVariableCredentialsProvider())
                 .withRegion(AWS_REGION)
                 .build();
     }
@@ -52,6 +52,15 @@ public class AmazonDynamoDBHelper {
                 newItem(key, value)
         )));*/
         //requestItems.put(tableName, writeRequests);
+    }
+
+    public static boolean doesTableExist() {
+        try {
+            dynamoDB.describeTable(tableName);
+            return true;
+        } catch (ResourceNotFoundException e) {
+            return false;
+        }
     }
 
 //    String key = row.get("type-args").getS();

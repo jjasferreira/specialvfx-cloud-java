@@ -32,4 +32,8 @@ public class MetricsHelper {
 
     }
 
+    public boolean doesTableExist() {
+        return AmazonDynamoDBHelper.doesTableExist();
+    }
+
 }

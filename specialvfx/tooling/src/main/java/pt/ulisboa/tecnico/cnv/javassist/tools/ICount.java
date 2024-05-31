@@ -28,15 +28,20 @@ public class ICount extends CodeDumper {
 
         // TODO: Check or wait until the table exists
         mh = new MetricsHelper();
+        while (!mh.doesTableExist()) {
+            System.out.println("Waiting for table creation");
+            Thread.sleep(5000L);
+        }
+        System.out.println("Table Created!");
     }
 
     public static void incBasicBlock(int position, int length) {
         long threadID = Thread.currentThread().getId();
 
-        /*if (!ninstMap.containsKey(threadID)) {
+        if (!ninstMap.containsKey(threadID)) {
             StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
             System.out.println("Called from method: " + stackTraceElements[2] + " with thread ID: " + threadID);
-        }*/
+        }
 
         ninstMap.put(threadID, ninstMap.getOrDefault(threadID, 0L) + length);
     }
