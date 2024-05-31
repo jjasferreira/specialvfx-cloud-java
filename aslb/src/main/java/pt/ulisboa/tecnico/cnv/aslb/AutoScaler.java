@@ -39,11 +39,11 @@ public class AutoScaler {
         KEY_NAME = keyName;
         this.cloudWatch = AmazonCloudWatchClientBuilder.standard()
             .withRegion(AWS_REGION)
-            .withCredentials(new EnvironmentVariableCredentialsProvider())
+            .withCredentials(new InstanceProfileCredentialsProvider(false))
             .build();
         this.ec2 = AmazonEC2ClientBuilder.standard()
             .withRegion(AWS_REGION)
-            .withCredentials(new EnvironmentVariableCredentialsProvider())
+            .withCredentials(new InstanceProfileCredentialsProvider(false))
             .build();
         this.loadBalancer = lb;
         this.decomissionedInstances = new HashSet<>();
