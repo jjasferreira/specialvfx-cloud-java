@@ -99,7 +99,7 @@ public class AutoScaler {
                 }
             }
 
-            System.out.println("[AS] Time has passed, system may start receiving requests");
+            System.out.println("[AS] Sucessfully launched first instance: " + newInstanceId);
 
         } catch (AmazonServiceException ase) {
             System.out.println("Caught Exception: " + ase.getMessage());
@@ -206,15 +206,39 @@ public class AutoScaler {
                 .withMaxCount(1)
                 .withKeyName(KEY_NAME)
                 .withSecurityGroupIds(SEC_GROUP_ID)
+                .withMonitoring(true)
                 .withIamInstanceProfile(new IamInstanceProfileSpecification().withName(IAM_ROLE_NAME));
+            
             RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
             String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
-            String newInstanceIP = runInstancesResult.getReservation().getInstances().get(0).getPublicIpAddress();
-            InstanceStats stats = new InstanceStats(newInstanceIP);
-            lb.instanceStats.put(newInstanceId, stats);
-            lb.availableInstances.add(newInstanceId);
+            DescribeInstancesRequest request = new DescribeInstancesRequest();
+            List<String> instanceIds = new ArrayList<String>();
+            instanceIds.add(newInstanceId);
+            request.setInstanceIds(instanceIds);
+
+            System.out.println("Waiting until instance is operational...");
+            try {
+                Thread.sleep(60000);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            DescribeInstancesResult result = ec2.describeInstances(request);
+            List<Reservation> reservations = result.getReservations();
+            for (Reservation reservation  : reservations) {
+                List<Instance> instances1 = reservation.getInstances();
+                for (Instance instance : instances1) {
+                    String newInstanceIP = instance.getPublicIpAddress();
+                    System.out.println("[AS] New instance IP " + newInstanceIP);
+                    InstanceStats stats = new InstanceStats(newInstanceIP);
+                    lb.instanceStats.put(newInstanceId, stats);
+                    lb.availableInstances.add(newInstanceId);
+                }
+            }
             lb.isOutscaling = false;
             System.out.println("[AS] Sucessfully launched new instance: " + newInstanceId);
+
         } catch (AmazonServiceException ase) {
             System.out.println("Caught Exception: " + ase.getMessage());
             System.out.println("Response Status Code: " + ase.getStatusCode());
