@@ -35,11 +35,9 @@ public class RayRequestHandler extends RequestHandler{
         super(lb);
     }
 
-    public String doLambdaCall(HttpExchange he) {
-        URI requestedUri = he.getRequestURI();
+    public String doLambdaCall(String requestBody, URI requestedUri, Map<String, Object> body) {
         String query = requestedUri.getRawQuery();
         Map<String, String> parameters = queryToMap(query);
-        ObjectMapper mapper = new ObjectMapper();
 
         int scols = Integer.parseInt(parameters.get("scols"));
         int srows = Integer.parseInt(parameters.get("srows"));
@@ -49,16 +47,6 @@ public class RayRequestHandler extends RequestHandler{
         int roff = Integer.parseInt(parameters.get("roff"));
         boolean aa = Boolean.parseBoolean(parameters.getOrDefault("aa", "false"));
         boolean multi = Boolean.parseBoolean(parameters.getOrDefault("multi", "false"));
-
-        InputStream stream = he.getRequestBody();
-        Map<String, Object> body = null; 
-        try {
-            body = mapper.readValue(stream, new TypeReference<>() {});
-        }
-        catch (IOException io) {
-            io.printStackTrace();
-            return "ERROR";
-        }
 
         byte[] input = ((String) body.get("scene")).getBytes();
         byte[] texmap = null;
@@ -106,20 +94,8 @@ public class RayRequestHandler extends RequestHandler{
     }
 
     // Return size of image
-    public String[] getCallArgs(HttpExchange t) {
-        URI requestedUri = t.getRequestURI();
+    public String[] getCallArgs(String requestBody, URI requestedUri, Map<String, Object> body) {
         String query = requestedUri.getRawQuery();
-        ObjectMapper mapper = new ObjectMapper();
-
-        InputStream stream = t.getRequestBody();
-        Map<String, Object> body = null; 
-        try {
-            body = mapper.readValue(stream, new TypeReference<>() {});
-        }
-        catch (IOException io) {
-            io.printStackTrace();
-            return new String[2];
-        }
 
         byte[] input = ((String) body.get("scene")).getBytes();
         byte[] texmap = null;

@@ -288,7 +288,7 @@ public class LoadBalancer {
 
     private void initializeDynamoDB() {
         dynamoDB = AmazonDynamoDBClientBuilder.standard()
-            .withCredentials(new EnvironmentVariableCredentialsProvider())
+            .withCredentials(new InstanceProfileCredentialsProvider(false))
             .withRegion(AWS_REGION)
             .build();
 
