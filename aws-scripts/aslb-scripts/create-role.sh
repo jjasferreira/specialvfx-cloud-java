@@ -24,7 +24,7 @@ TRUST_POLICY='{
     }
   ]
 }'
-CUSTOM_POLICY='{
+CUSTOM_POLICY_TEMPLATE='{
   "Version": "2012-10-17",
   "Statement": [
     {
@@ -35,11 +35,12 @@ CUSTOM_POLICY='{
         "iam:PassRole"
       ],
       "Resource": [
-        "arn:aws:iam::381491903948:role/WorkerRole"
+        "arn:aws:iam::{{account_id}}:role/WorkerRole"
       ]
     }
   ]
 }'
+CUSTOM_POLICY="${CUSTOM_POLICY_TEMPLATE//\{\{account_id\}\}/$AWS_ACCOUNT_ID}"
 
 # Check if IAM Role exists
 ROLE_EXISTS=$(aws iam get-role --role-name $ROLE_NAME 2>&1)

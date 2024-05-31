@@ -23,7 +23,7 @@ public class AutoScaler {
     private static String AMI_ID;
     private static String KEY_NAME;
     private static String IAM_ROLE_NAME;
-    private static final int SCALE_PERIOD = 300; // seconds
+    private static final int SCALE_PERIOD = 60; // seconds
     private static final double MIN_THRESHOLD = 20.0; // CPU utilization %
     private static final double MAX_THRESHOLD = 70.0; // CPU utilization %
     private static final int MIN_INSTANCES = 1;
@@ -153,7 +153,7 @@ public class AutoScaler {
                 .withDimensions(new Dimension().withName("InstanceId").withValue(instanceId))
                 .withEndTime(new Date());
 
-            System.out.println(new Date().getTime());
+            System.out.println("[AS] Time: " + new Date().getTime());
 
             GetMetricStatisticsResult result = cloudWatch.getMetricStatistics(request);
             List<Datapoint> datapoints = result.getDatapoints();

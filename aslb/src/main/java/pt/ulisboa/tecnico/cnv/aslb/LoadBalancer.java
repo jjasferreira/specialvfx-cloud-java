@@ -53,7 +53,7 @@ public class LoadBalancer {
 
 
     public LoadBalancer(String awsRegion, String secGroupId, String amiId, String keyName, String roleName) {
-        System.out.println("Launching Load Balancer...");
+        System.out.println("[LB] Launching Load Balancer...");
         AWS_REGION = awsRegion;
         SEC_GROUP_ID = secGroupId;
         AMI_ID = amiId;
@@ -61,9 +61,9 @@ public class LoadBalancer {
         IAM_ROLE_NAME = roleName;
         availableInstances = new ArrayList<String>();
         try {
-            System.out.println("Initializing DynamoDB...");
+            System.out.println("[LB] Initializing DynamoDB...");
             initializeDynamoDB();
-            System.out.println("Load Balancer is currently operational");
+            System.out.println("[LB] Load Balancer is currently operational");
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -188,24 +188,24 @@ public class LoadBalancer {
     
     public String[] getBestInstance(int requestType, String[] args) {
         double complexity = estimateComplexity(requestType, args);
-        System.out.println("Complexity: " + complexity);
+        System.out.println("[LB] Complexity: " + complexity);
         if (!notFitForAny(complexity)) {
-            System.out.println("Fit for some");
+            System.out.println("[LB] Fit for some");
             String lowerId = "";
             double lowerComplexity = MAX_COMPLEXITY;
             for (String instanceId : availableInstances) {
                 double instanceComplexity = instanceStats.get(instanceId).getTotalComplexity();
-                System.out.println("Total Complexity of instance " + instanceId + "is " + instanceComplexity);
+                System.out.println("[LB] Total Complexity of instance " + instanceId + " is " + instanceComplexity);
                 if (instanceComplexity <= lowerComplexity) {
                     lowerId = instanceId;
                     lowerComplexity = instanceComplexity;
                 }
             }
-            System.out.println("Best instance is " + lowerId);
+            System.out.println("[LB] Best instance is " + lowerId);
             return getInstanceInformation(requestType, lowerId, complexity);
         }
         else {
-            System.out.println("Not fit for any");
+            System.out.println("[LB] Not fit for any");
             String bestId = bestFutureCase(complexity);
             return getInstanceInformation(requestType, bestId, complexity);
         }
@@ -225,7 +225,7 @@ public class LoadBalancer {
             default: instanceInfo[3] = "";
         }
         instanceInfo[4] = String.valueOf(complexity);
-        System.out.println("The best instance info is: id " + instanceInfo[0] + " ; ip " + instanceInfo[1] + " ; port " + instanceInfo[2] + " ; type " + instanceInfo[3] + " ; complexity " + complexity);
+        System.out.println("[LB] The best instance info is: id " + instanceInfo[0] + " ; ip " + instanceInfo[1] + " ; port " + instanceInfo[2] + " ; type " + instanceInfo[3] + " ; complexity " + complexity);
         return instanceInfo;
     }
 
@@ -256,18 +256,18 @@ public class LoadBalancer {
 
     private void pullDynamoDB() {
         Thread dbThread = new Thread( () -> {
-            System.out.println("Accessing DB for fresh results");
+            System.out.println("[LB] Accessing DB for fresh results");
             ScanRequest scanRequest = new ScanRequest().withTableName(TABLE_NAME);
             ScanResult scanResult = dynamoDB.scan(scanRequest);
             List<Map<String,AttributeValue>> results = scanResult.getItems();
             if (results.size() == 0) {
-                System.out.println("No results in DB");
+                System.out.println("[LB] No results in DB");
             }
             for (Map<String, AttributeValue> row : results) {
                 String key = row.get("type-args").getS();
                 String attr = row.get("line").getN();
                 if (key == null) {
-                    System.out.println("Key is null");
+                    System.out.println("[LB] Key is null");
                     continue;
                 }
                 String[] keySplit = key.split(";");
@@ -307,10 +307,10 @@ public class LoadBalancer {
             String tableName = TABLE_NAME;
 
             // Delete table if it exists, to clear old values
-            System.out.println("Deleting old table");
+            System.out.println("[LB] Deleting old table");
             TableUtils.deleteTableIfExists(dynamoDB, new DeleteTableRequest().withTableName(tableName));
             Thread.sleep(20000);
-            System.out.println("Creating new table");
+            System.out.println("[LB] Creating new table");
 
             // Table has "type;arg1;arg2;..." as key and "lines;blocks;functions" as values
             CreateTableRequest createTableRequest = new CreateTableRequest().withTableName(tableName)
@@ -320,7 +320,7 @@ public class LoadBalancer {
 
             TableUtils.createTableIfNotExists(dynamoDB, createTableRequest);
             TableUtils.waitUntilActive(dynamoDB, tableName);            
-            System.out.println("DynamoDB Table is active");
+            System.out.println("[LB] DynamoDB Table is active");
         }
         catch (Exception e) {
             e.printStackTrace();
