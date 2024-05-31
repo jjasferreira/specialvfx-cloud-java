@@ -18,4 +18,4 @@ You should follow the instructions in the [README.md](aws-scripts/README.md) fil
 
 ### specialvfx
 
-This directory contains all
+This directory contains all SpecialVFX@Cloud code modules.
