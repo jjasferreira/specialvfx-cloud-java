@@ -73,6 +73,13 @@ delete_iam_role_and_instance_profile() {
     echo "Detached policy '$POLICY_ARN' from role '$ROLE_NAME'."
   done
 
+  # Delete policy named 'CustomPermissionPolicy'
+  POLICY_ARN=$(aws iam list-policies --query 'Policies[?PolicyName==`CustomPermissionPolicy`].Arn' --output text)
+  if [ -n "$POLICY_ARN" ]; then
+    aws iam delete-policy --policy-arn $POLICY_ARN
+    echo "Deleted policy '$POLICY_ARN'."
+  fi
+
   # Delete instance profile
   INSTANCE_PROFILE_EXISTS=$(aws iam get-instance-profile --instance-profile-name $INSTANCE_PROFILE_NAME 2>&1)
   if [[ $INSTANCE_PROFILE_EXISTS != *"NoSuchEntity"* ]]; then

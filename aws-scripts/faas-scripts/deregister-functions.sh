@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ../config.sh
+source config.sh
 
 aws lambda delete-function --function-name raytrace-func
 aws lambda delete-function --function-name blur-func

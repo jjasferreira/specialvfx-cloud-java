@@ -37,6 +37,16 @@ CUSTOM_POLICY_TEMPLATE='{
       "Resource": [
         "arn:aws:iam::{{account_id}}:role/WorkerRole"
       ]
+    },
+    {
+      "Sid": "Statement2",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": [
+        "arn:aws:lambda:us-west-3:{{account_id}}:function:raytrace-func",
+        "arn:aws:lambda:us-west-3:{{account_id}}:function:blur-func",
+        "arn:aws:lambda:us-west-3:{{account_id}}:function:enhance-func"
+      ]
     }
   ]
 }'
@@ -75,4 +85,3 @@ fi
 aws iam attach-role-policy --role-name $ROLE_NAME --policy-arn "$POLICY_ARN"
 
 echo "Custom permission policy attached to IAM Role '$ROLE_NAME'."
-

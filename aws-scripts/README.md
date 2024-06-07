@@ -14,8 +14,9 @@ chmod 400 mykeypair.pem
 ```
 
 - Execute [`create-vpc-security-group.sh`](create-vpc-security-group.sh) to setup VPC and security group;
-- Update the `AWS_REGION` variable in the file [AmazonDynamoDBHelper.java](../specialvfx/tooling/src/main/java/pt/ulisboa/tecnico/cnv/javassist/AmazonDynamoDBHelper.java) with the value you chose for the `AWS_DEFAULT_REGION` variable in the [`config.sh`](config.sh) file 
+- Update the `AWS_REGION` variable in the file [AmazonDynamoDBHelper.java](../specialvfx/tooling/src/main/java/pt/ulisboa/tecnico/cnv/javassist/AmazonDynamoDBHelper.java) with the value you chose for the `AWS_DEFAULT_REGION` variable in the [`config.sh`](config.sh) file
 - Compile the [`specialvfx`](../specialvfx/) project by running `mvn clean package`;
+- Go to the [`faas-scripts`](./faas-scripts/) directory and execute [`register-functions.sh`](./faas-scripts/register-functions.sh) to register the functions in the AWS Lambda service;
 - Execute [`create-worker-image.sh`](create-worker-image.sh) to register the Worker AMI;
 - Update the first constants of the code contained in file [ASLBServer.java](../aslb/src/main/java/pt/ulisboa/tecnico/cnv/aslb/ASLBServer.java) with the values obtained from the previous steps;
 - Compile the [`aslb`](../aslb/) project by running `mvn clean package`;
@@ -24,4 +25,5 @@ chmod 400 mykeypair.pem
 
 ---
 
-- When done, execute [`cleanup.sh`](cleanup.sh) to delete all instances, images, snapshots, volumes, the VPC and the security group.
+- When done, execute [`cleanup.sh`](cleanup.sh) to delete all instances, images, snapshots, volumes, the VPC and the security group;
+- Also, go to the [`faas-scripts`](./faas-scripts/) directory and execute [`deregister-functions.sh`](./faas-scripts/deregister-functions.sh).
